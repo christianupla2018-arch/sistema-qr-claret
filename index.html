@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Control de ingreso - Concurso Claret</title>
+
+  <script src="https://unpkg.com/html5-qrcode"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      background: #f1f4f9;
+      color: #243247;
+    }
+
+    .contenedor {
+      max-width: 950px;
+      margin: auto;
+    }
+
+    header {
+      background: #123b67;
+      color: white;
+      padding: 22px;
+      border-radius: 12px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    header h1 {
+      margin: 0 0 8px;
+      font-size: 25px;
+    }
+
+    header p {
+      margin: 0;
+      font-size: 14px;
+    }
+
+    .panel {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.06);
+    }
+
+    h2 {
+      color: #123b67;
+      margin-top: 0;
+      font-size: 19px;
+    }
+
+    #lector {
+      width: 100%;
+      max-width: 500px;
+      margin: auto;
+    }
+
+    .botones {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 15px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 7px;
+      padding: 12px 18px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    .btn-principal {
+      background: #123b67;
+      color: white;
+    }
+
+    .btn-secundario {
+      background: #e4eaf1;
+      color: #243247;
+    }
+
+    .btn-verde {
+      background: #16834a;
+      color: white;
+    }
+
+    input {
+      width: 100%;
+      padding: 13px;
+      border: 1px solid #ccd5df;
+      border-radius: 7px;
+      font-size: 16px;
+      margin-top: 8px;
+    }
+
+    .resultado {
+      display: none;
+      margin-top: 18px;
+      padding: 18px;
+      border-radius: 9px;
+      line-height: 1.6;
+    }
+
+    .correcto {
+      display: block;
+      background: #e5f6ec;
+      border-left: 5px solid #16834a;
+    }
+
+    .duplicado {
+      display: block;
+      background: #fff3d8;
+      border-left: 5px solid #e3a000;
+    }
+
+    .no-registrado,
+    .error {
+      display: block;
+      background: #fde8e8;
+      border-left: 5px solid #c62828;
+    }
+
+    .estado {
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+
+    .tabla-contenedor {
+      overflow-x: auto;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      min-width: 650px;
+      font-size: 13px;
+    }
+
+    th, td {
+      border-bottom: 1px solid #e4e9ef;
+      padding: 11px 9px;
+      text-align: left;
+    }
+
+    th {
+      background: #edf2f7;
+      color: #123b67;
+    }
+
+    .etiqueta {
+      font-weight: bold;
+    }
+
+    .pie {
+      text-align: center;
+      color: #6b7785;
+      font-size: 12px;
+      padding: 10px;
+    }
+
+    @media(max-width:600px) {
+      body {
+        padding: 10px;
+      }
+
+      header h1 {
+        font-size: 20px;
+      }
+
+      .panel {
+        padding: 14px;
+      }
+
+      button {
+        flex: 1;
+      }
+    }
+  </style>
+</head>
+
+<body>
+<div class="contenedor">
+
+  <header>
+    <h1>CONTROL DE INGRESO - CONCURSO CLARET</h1>
+    <p>Sistema de identificación y registro mediante código QR</p>
+  </header>
+
+  <section class="panel">
+    <h2>1. Escanear código QR</h2>
+
+    <div id="lector"></div>
+
+    <div class="botones">
+      <button class="btn-principal" onclick="iniciarCamara()">
+        Activar cámara
+      </button>
+
+      <button class="btn-secundario" onclick="detenerCamara()">
+        Detener cámara
+      </button>
+    </div>
+
+    <div id="resultado" class="resultado"></div>
+  </section>
+
+  <section class="panel">
+    <h2>2. Registro manual</h2>
+
+    <label for="codigoManual">
+      Ingrese o pegue el código QR:
+    </label>
+
+    <input
+      type="text"
+      id="codigoManual"
+      placeholder="Escriba el código QR"
+      autocomplete="off"
+    >
+
+    <div class="botones">
+      <button class="btn-verde" onclick="registrarManual()">
+        Registrar código
+      </button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>3. Últimos escaneos</h2>
+
+    <div class="botones">
+      <button class="btn-principal" onclick="cargarHistorial()">
+        Actualizar historial
+      </button>
+    </div>
+
+    <div class="tabla-contenedor" style="margin-top:15px">
+      <table>
+        <thead>
+          <tr>
+            <th>Fecha y hora</th>
+            <th>DNI</th>
+            <th>Apellidos y nombres</th>
+            <th>Colegio</th>
+            <th>Resultado</th>
+          </tr>
+        </thead>
+
+        <tbody id="tablaHistorial">
+          <tr>
+            <td colspan="5">Cargando registros...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="pie">
+    Área de TI - Colegio Claret
+  </div>
+
+</div>
+
+
+<script>
+/************************************************************
+ * CONFIGURACIÓN DE LA API
+ ************************************************************/
+
+const API_URL =
+  'https://script.google.com/macros/s/AKfycbz2yhof5i1b8lQz6OghPoXraqIeWRkBN9AETHwR5wrMQTQaIi99ViIkA0Gorp3HrhIZ/exec';
+
+let lectorQR = null;
+let camaraActiva = false;
+let procesando = false;
+
+
+/************************************************************
+ * COMUNICACIÓN CON GOOGLE APPS SCRIPT MEDIANTE JSONP
+ ************************************************************/
+
+function llamarAPI(parametros, exito, fallo) {
+  const callback = 'qrCallback_' +
+    Date.now() + '_' +
+    Math.floor(Math.random() * 1000000);
+
+  const script = document.createElement('script');
+
+  const datos = new URLSearchParams({
+    ...parametros,
+    callback: callback
+  });
+
+  let finalizado = false;
+
+  const limpiar = function() {
+    if (finalizado) return;
+    finalizado = true;
+
+    delete window[callback];
+
+    if (script.parentNode) {
+      script.parentNode.removeChild(script);
+    }
+  };
+
+  window[callback] = function(respuesta) {
+    limpiar();
+
+    if (exito) {
+      exito(respuesta);
+    }
+  };
+
+  script.onerror = function() {
+    limpiar();
+
+    if (fallo) {
+      fallo('No fue posible conectar con Google Apps Script.');
+    }
+  };
+
+  script.src = API_URL + '?' + datos.toString();
+
+  document.body.appendChild(script);
+}
+
+
+/************************************************************
+ * PRUEBA DE CONEXIÓN
+ ************************************************************/
+
+function probarConexion() {
+  llamarAPI(
+    { accion: 'prueba' },
+
+    function(respuesta) {
+      console.log('Conexión:', respuesta);
+    },
+
+    function(error) {
+      console.error(error);
+    }
+  );
+}
+
+
+/************************************************************
+ * INICIAR CÁMARA
+ ************************************************************/
+
+async function iniciarCamara() {
+  if (camaraActiva) return;
+
+  try {
+    if (!lectorQR) {
+      lectorQR = new Html5Qrcode('lector');
+    }
+
+    const configuracion = {
+      fps: 10,
+      qrbox: {
+        width: 250,
+        height: 250
+      },
+      aspectRatio: 1
+    };
+
+    await lectorQR.start(
+      { facingMode: 'environment' },
+      configuracion,
+      function(textoDecodificado) {
+        if (!procesando) {
+          registrarCodigo(textoDecodificado);
+        }
+      },
+      function(errorLectura) {
+        // No mostrar errores de lectura continua.
+      }
+    );
+
+    camaraActiva = true;
+
+  } catch (error) {
+    mostrarResultado(
+      'error',
+      'No se pudo activar la cámara. Verifique los permisos del navegador y que la página esté publicada mediante HTTPS.<br><br>' +
+      error
+    );
+  }
+}
+
+
+/************************************************************
+ * DETENER CÁMARA
+ ************************************************************/
+
+async function detenerCamara() {
+  if (!lectorQR || !camaraActiva) return;
+
+  try {
+    await lectorQR.stop();
+    camaraActiva = false;
+  } catch (error) {
+    console.error('Error al detener cámara:', error);
+  }
+}
+
+
+/************************************************************
+ * REGISTRAR CÓDIGO ESCANEADO
+ ************************************************************/
+
+function registrarCodigo(codigo) {
+  codigo = String(codigo || '').trim();
+
+  if (!codigo || procesando) return;
+
+  procesando = true;
+
+  mostrarResultado(
+    'duplicado',
+    'Procesando código QR...'
+  );
+
+  llamarAPI(
+    {
+      accion: 'escanear',
+      codigo: codigo
+    },
+
+    function(respuesta) {
+      procesando = false;
+
+      if (respuesta.error || !respuesta.exito) {
+        mostrarResultado(
+          'error',
+          respuesta.error || respuesta.mensaje || 'No se pudo procesar el código.'
+        );
+        return;
+      }
+
+      mostrarRespuestaParticipante(respuesta);
+      cargarHistorial();
+    },
+
+    function(error) {
+      procesando = false;
+      mostrarResultado('error', error);
+    }
+  );
+}
+
+
+/************************************************************
+ * REGISTRO MANUAL
+ ************************************************************/
+
+function registrarManual() {
+  const campo = document.getElementById('codigoManual');
+  const codigo = campo.value.trim();
+
+  if (!codigo) {
+    mostrarResultado('error', 'Ingrese un código QR.');
+    campo.focus();
+    return;
+  }
+
+  registrarCodigo(codigo);
+  campo.value = '';
+}
+
+
+/************************************************************
+ * MOSTRAR RESULTADO DEL ESCANEO
+ ************************************************************/
+
+function mostrarRespuestaParticipante(respuesta) {
+  const participante = respuesta.participante;
+
+  let contenido = `
+    <div class="estado">${escaparHTML(respuesta.resultado)}</div>
+    <strong>${escaparHTML(respuesta.mensaje)}</strong>
+    <br>
+    Fecha y hora: ${escaparHTML(respuesta.fechaHora || '')}
+  `;
+
+  if (participante) {
+    contenido += `
+      <hr>
+      <strong>Participante:</strong><br>
+      DNI: ${escaparHTML(participante.dni)}<br>
+      Apellidos: ${escaparHTML(participante.apellidos)}<br>
+      Nombres: ${escaparHTML(participante.nombres)}<br>
+      Colegio: ${escaparHTML(participante.colegio)}<br>
+      Nivel: ${escaparHTML(participante.nivel)}<br>
+      Grado: ${escaparHTML(participante.grado)}
+    `;
+  }
+
+  const tipo = respuesta.resultado === 'CORRECTO'
+    ? 'correcto'
+    : respuesta.resultado === 'DUPLICADO'
+      ? 'duplicado'
+      : 'no-registrado';
+
+  mostrarResultado(tipo, contenido);
+}
+
+
+/************************************************************
+ * MOSTRAR MENSAJES
+ ************************************************************/
+
+function mostrarResultado(tipo, contenido) {
+  const elemento = document.getElementById('resultado');
+
+  elemento.className = 'resultado ' + tipo;
+  elemento.innerHTML = contenido;
+}
+
+
+/************************************************************
+ * CARGAR HISTORIAL
+ ************************************************************/
+
+function cargarHistorial() {
+  const tabla = document.getElementById('tablaHistorial');
+
+  tabla.innerHTML = `
+    <tr>
+      <td colspan="5">Consultando registros...</td>
+    </tr>
+  `;
+
+  llamarAPI(
+    { accion: 'historial' },
+
+    function(respuesta) {
+      if (!respuesta.exito) {
+        tabla.innerHTML = `
+          <tr>
+            <td colspan="5">No se pudo cargar el historial.</td>
+          </tr>
+        `;
+        return;
+      }
+
+      const registros = respuesta.registros || [];
+
+      if (registros.length === 0) {
+        tabla.innerHTML = `
+          <tr>
+            <td colspan="5">Todavía no existen escaneos.</td>
+          </tr>
+        `;
+        return;
+      }
+
+      tabla.innerHTML = registros.map(function(registro) {
+        return `
+          <tr>
+            <td>${escaparHTML(registro.fechaHora)}</td>
+            <td>${escaparHTML(registro.dni)}</td>
+            <td>
+              ${escaparHTML(registro.apellidos)}
+              ${escaparHTML(registro.nombres)}
+            </td>
+            <td>${escaparHTML(registro.colegio)}</td>
+            <td class="etiqueta">
+              ${escaparHTML(registro.resultado)}
+            </td>
+          </tr>
+        `;
+      }).join('');
+    },
+
+    function(error) {
+      tabla.innerHTML = `
+        <tr>
+          <td colspan="5">${escaparHTML(error)}</td>
+        </tr>
+      `;
+    }
+  );
+}
+
+
+/************************************************************
+ * PROTEGER TEXTO MOSTRADO EN HTML
+ ************************************************************/
+
+function escaparHTML(valor) {
+  return String(valor == null ? '' : valor).replace(
+    /[&<>"']/g,
+    function(caracter) {
+      return {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      }[caracter];
+    }
+  );
+}
+
+
+/************************************************************
+ * INICIALIZAR INTERFAZ
+ ************************************************************/
+
+document.addEventListener('DOMContentLoaded', function() {
+  probarConexion();
+  cargarHistorial();
+
+  document.getElementById('codigoManual')
+    .addEventListener('keydown', function(event) {
+      if (event.key === 'Enter') {
+        registrarManual();
+      }
+    });
+});
+</script>
+
+</body>
+</html>
